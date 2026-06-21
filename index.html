@@ -27,6 +27,17 @@ html,body{height:100%;background:#160d07;overflow:hidden}
 
 <div data-screen-label="ROOT" style="position:fixed;inset:0;overflow:hidden;font-family:'Noto Serif TC',serif;color:#f0e4cd;background:#160d07;user-select:none">
 
+  <!-- ============ MOBILE GATE ============ -->
+  <div id="mobile-gate" style="display:none;position:absolute;inset:0;z-index:999;background:#160d07;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:32px;text-align:center">
+    <div style="font-size:60px">📱</div>
+    <h1 style="font-size:28px;font-weight:900;color:#f2e3bd;letter-spacing:.1em">藏書金字塔</h1>
+    <div style="font-family:'VT323',monospace;font-size:16px;color:#caa24f;letter-spacing:.2em">THE LIBRARY OF GIZA</div>
+    <div style="width:48px;height:2px;background:#caa24f;margin:8px 0"></div>
+    <p style="font-size:15px;line-height:1.8;color:#c0a87a;max-width:280px">此館為 3D 空間體驗，<br>建議使用桌面瀏覽器開啟<br>以獲得最佳探索體驗。</p>
+    <p style="font-size:12px;color:#6b5740;margin-top:4px">Best viewed on desktop (≥ 768px)</p>
+  </div>
+  <style>@media(max-width:767px){#mobile-gate{display:flex!important}}</style>
+
   <!-- ============ EXTERIOR ============ -->
   <sc-if value="{{ isExterior }}" hint-placeholder-val="{{ true }}">
     <div data-screen-label="EXTERIOR" style="position:absolute;inset:0;overflow:hidden;background:#86b8de">
@@ -214,6 +225,7 @@ html,body{height:100%;background:#160d07;overflow:hidden}
                   </sc-if>
                 </div>
                 <div onClick="{{ newNote }}" style="cursor:pointer;width:100%;text-align:center;background:#caa24f;color:#2a1b10;font-weight:700;font-size:15px;letter-spacing:.1em;padding:9px;box-shadow:2px 2px 0 rgba(0,0,0,.35)" onMouseOver="{{ spOn }}" onMouseOut="{{ spOff }}">＋ 新增心得筆記本</div>
+                <div onClick="{{ exportAllNotes }}" style="cursor:pointer;width:100%;text-align:center;background:rgba(30,107,79,.7);border:2px solid #1e6b4f;color:#eafff3;font-weight:700;font-size:13px;letter-spacing:.08em;padding:7px;box-shadow:2px 2px 0 rgba(0,0,0,.3)" onMouseOver="{{ spOn }}" onMouseOut="{{ spOff }}">↓ 匯出全部筆記 (JSON)</div>
               </div>
             </div>
           </div>
@@ -284,6 +296,14 @@ html,body{height:100%;background:#160d07;overflow:hidden}
               <span style="background:{{ readerColor }};color:#fff;font-size:13px;font-weight:700;padding:4px 12px;border-radius:2px">{{ bCat }}</span>
               <span style="background:#e0d2b6;color:#5a4523;font-size:13px;font-weight:700;padding:4px 12px;border-radius:2px">{{ bFloorName }}</span>
             </div>
+            <div style="margin-bottom:18px">
+              <div style="font-size:12px;color:#8a6a3a;font-family:'VT323',monospace;letter-spacing:.1em;margin-bottom:8px">閱讀狀態</div>
+              <div style="display:flex;gap:8px">
+                <div onClick="{{ setWant }}" style="cursor:pointer;padding:6px 14px;font-size:13px;font-weight:700;border:2px solid {{ wantActive }};background:{{ wantBg }};color:{{ wantFg }};border-radius:2px">📌 想讀</div>
+                <div onClick="{{ setReading }}" style="cursor:pointer;padding:6px 14px;font-size:13px;font-weight:700;border:2px solid {{ readingActive }};background:{{ readingBg }};color:{{ readingFg }};border-radius:2px">📖 讀中</div>
+                <div onClick="{{ setRead }}" style="cursor:pointer;padding:6px 14px;font-size:13px;font-weight:700;border:2px solid {{ readActive }};background:{{ readBg }};color:{{ readFg }};border-radius:2px">✅ 已讀</div>
+              </div>
+            </div>
             <p style="font-size:15px;line-height:1.9;color:#4a3826">這本書收錄於你的藏書檔案。內容檔（<code style="background:#e0d2b6;padding:1px 6px">.md</code>）匯入後，即可在此閱讀全文並寫下筆記。</p>
             <div style="margin-top:18px;background:#e6d8bd;border:2px dashed #b89a5e;padding:11px 14px;font-size:12px;color:#6b5740;line-height:1.6;font-family:'VT323',monospace;letter-spacing:.04em;word-break:break-all">📄 {{ bFile }}</div>
           </div>
@@ -349,6 +369,7 @@ class Component extends DCLogic {
     this.leather = ['#6e2a22','#7a3b1e','#8a5a2c','#5c4622','#3f2a18','#9c6a34','#caa56a','#4a3526','#6e4326','#864d23','#5a2f2a','#7b5a2e'];
     this.notes = this.loadNotes();
     if(!this.notes.length){ this.notes = this.seed(); this.saveNotes(); }
+    this.statuses = this.loadStatuses();
   }
 
   seed(){ const t=Date.now(); return [
@@ -357,6 +378,10 @@ class Component extends DCLogic {
   ]; }
   loadNotes(){ try{ return JSON.parse(localStorage.getItem('pyramid_notes_v1'))||[]; }catch(e){ return []; } }
   saveNotes(){ try{ localStorage.setItem('pyramid_notes_v1',JSON.stringify(this.notes)); }catch(e){} }
+  loadStatuses(){ try{ return JSON.parse(localStorage.getItem('pyramid_statuses_v1'))||{}; }catch(e){ return {}; } }
+  saveStatuses(){ try{ localStorage.setItem('pyramid_statuses_v1',JSON.stringify(this.statuses)); }catch(e){} }
+  setStatus(file,status){ if(this.statuses[file]===status){ delete this.statuses[file]; } else { this.statuses[file]=status; } this.saveStatuses(); this.forceUpdate(); }
+  exportAllNotes(){ const blob=new Blob([JSON.stringify({exported:new Date().toISOString(),notes:this.notes,statuses:this.statuses},null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pyramid_notes_export.json'; a.click(); }
 
   componentDidMount(){
     this._kd = e=>{ this.setKey(e.code,true); if(this.state.view==='lobby' && !this.state.editor && !this.state.reader && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); };
@@ -476,6 +501,13 @@ class Component extends DCLogic {
       edTitleChange:(ev)=>this.edChange('title',ev.target.value),
       edBodyChange:(ev)=>this.edChange('body',ev.target.value),
       saveEditor:()=>this.saveEditor(), deleteNote:()=>this.deleteNote(), closeEditor:()=>this.closeEditor(), exportNote:()=>this.exportNote(),
+      exportAllNotes:()=>this.exportAllNotes(),
+      ...(()=>{ const file=rBook?rBook.file:''; const st=this.statuses[file]||''; const actStyle=(active)=>active?'#2a1b10':'#8a6a3a'; const actBg=(active,bg)=>active?bg:'transparent'; const actFg=(active)=>active?'#2a1b10':'#6b5740';
+        return { setWant:()=>this.setStatus(file,'want'), setReading:()=>this.setStatus(file,'reading'), setRead:()=>this.setStatus(file,'read'),
+          wantActive:actStyle(st==='want'), wantBg:actBg(st==='want','#f3da92'), wantFg:actFg(st==='want'),
+          readingActive:actStyle(st==='reading'), readingBg:actBg(st==='reading','#a8d8c8'), readingFg:actFg(st==='reading'),
+          readActive:actStyle(st==='read'), readBg:actBg(st==='read','#b8d8a8'), readFg:actFg(st==='read'),
+        }; })(),
     };
   }
 }
